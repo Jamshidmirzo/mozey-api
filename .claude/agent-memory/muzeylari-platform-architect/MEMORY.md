@@ -1,0 +1,1 @@
+- [Flutter offline sync](project_flutter_offline_sync.md) — Sprint 3: Drift DB, ApiClient, SyncManager, ConnectivityService, SyncScheduler

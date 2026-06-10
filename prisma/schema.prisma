@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Regions (viloyatlar) — administrative divisions of Uzbekistan.
+/// Multilingual name stored as JSONB: {"uz":"...", "ru":"...", "en":"..."}
+model Region {
+  id               String            @id @default(uuid()) @db.Uuid
+  name             Json              @db.JsonB
+  slug             String            @unique @db.VarChar(50)
+  orderIdx         Int               @default(0) @map("order_idx")
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt        DateTime?         @map("deleted_at") @db.Timestamptz(3)
+  museums          Museum[]
+  historicalPlaces HistoricalPlace[]
+
+  @@index([updatedAt])
+  @@index([orderIdx])
+  @@map("regions")
+}
+
+/// Museums — main content entity.
+/// Multilingual fields (name, description, ticketPrice) stored as JSONB: {"uz":"...", "ru":"...", "en":"..."}
+model Museum {
+  id           String         @id @default(uuid()) @db.Uuid
+  legacyId     Int?           @unique @map("legacy_id")
+  name         Json           @db.JsonB
+  description  Json           @db.JsonB
+  ticketPrice  Json           @map("ticket_price") @db.JsonB
+  latitude     Float
+  longitude    Float
+  city         String         @db.VarChar(255)
+  regionId     String?        @map("region_id") @db.Uuid
+  isPublished  Boolean        @default(false) @map("is_published")
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt    DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  region       Region?        @relation(fields: [regionId], references: [id], onDelete: SetNull)
+  photos       MuseumPhoto[]
+
+  @@index([updatedAt])
+  @@index([isPublished])
+  @@index([city])
+  @@index([regionId])
+  @@map("museums")
+}
+
+/// Photos for museums, stored in S3-compatible storage.
+model MuseumPhoto {
+  id        String   @id @default(uuid()) @db.Uuid
+  museumId  String   @map("museum_id") @db.Uuid
+  url       String   @db.Text
+  orderIdx  Int      @default(0) @map("order_idx")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  museum    Museum   @relation(fields: [museumId], references: [id], onDelete: Cascade)
+
+  @@index([museumId])
+  @@map("museum_photos")
+}
+
+/// Historical places — identical structure to museums.
+model HistoricalPlace {
+  id           String                @id @default(uuid()) @db.Uuid
+  legacyId     Int?                  @unique @map("legacy_id")
+  name         Json                  @db.JsonB
+  description  Json                  @db.JsonB
+  ticketPrice  Json                  @map("ticket_price") @db.JsonB
+  latitude     Float
+  longitude    Float
+  city         String                @db.VarChar(255)
+  regionId     String?               @map("region_id") @db.Uuid
+  isPublished  Boolean               @default(false) @map("is_published")
+  createdAt    DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt    DateTime?             @map("deleted_at") @db.Timestamptz(3)
+  region       Region?               @relation(fields: [regionId], references: [id], onDelete: SetNull)
+  photos       HistoricalPlacePhoto[]
+
+  @@index([updatedAt])
+  @@index([isPublished])
+  @@index([city])
+  @@index([regionId])
+  @@map("historical_places")
+}
+
+/// Photos for historical places.
+model HistoricalPlacePhoto {
+  id               String          @id @default(uuid()) @db.Uuid
+  historicalPlaceId String          @map("historical_place_id") @db.Uuid
+  url              String          @db.Text
+  orderIdx         Int             @default(0) @map("order_idx")
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  historicalPlace  HistoricalPlace @relation(fields: [historicalPlaceId], references: [id], onDelete: Cascade)
+
+  @@index([historicalPlaceId])
+  @@map("historical_place_photos")
+}
+
+/// Mobile app users, identified by device_id.
+model AppUser {
+  id         String       @id @default(uuid()) @db.Uuid
+  deviceId   String       @unique @map("device_id") @db.Text
+  locale     String?      @db.VarChar(5)
+  appVersion String?      @map("app_version") @db.VarChar(20)
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastSeenAt DateTime     @default(now()) @map("last_seen_at") @db.Timestamptz(3)
+  actions    UserAction[]
+
+  @@map("app_users")
+}
+
+/// Append-only user actions (like, unlike, save, unsave).
+/// No UPDATE or DELETE — only INSERT. Idempotent via clientEventId.
+model UserAction {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  entityType    String   @map("entity_type") @db.VarChar(20)
+  entityId      String   @map("entity_id") @db.Uuid
+  actionType    String   @map("action_type") @db.VarChar(10)
+  clientEventId String   @map("client_event_id") @db.Text
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  user          AppUser  @relation(fields: [userId], references: [id])
+
+  @@unique([userId, clientEventId])
+  @@index([userId, entityType, entityId, createdAt(sort: Desc)])
+  @@map("user_actions")
+}
+
+/// Admin users for the management panel.
+model Admin {
+  id           String     @id @default(uuid()) @db.Uuid
+  email        String     @unique @db.VarChar(255)
+  passwordHash String     @map("password_hash") @db.Text
+  role         String     @default("editor") @db.VarChar(20)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  auditLogs    AuditLog[]
+
+  @@map("admins")
+}
+
+/// Audit log — every content change by an admin is recorded.
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  adminId    String   @map("admin_id") @db.Uuid
+  action     String   @db.VarChar(50)
+  entityType String   @map("entity_type") @db.VarChar(50)
+  entityId   String   @map("entity_id") @db.Uuid
+  diff       Json?    @db.JsonB
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  admin      Admin    @relation(fields: [adminId], references: [id])
+
+  @@index([adminId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_log")
+}

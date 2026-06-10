@@ -1,0 +1,161 @@
+version: '3.9'
+
+services:
+  # ============================================
+  # PostgreSQL 16
+  # ============================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: muzeylari-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-muzeylari}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-muzeylari_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-muzeylari}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-muzeylari}']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # Redis 7
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: muzeylari-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # MinIO (S3-compatible object storage)
+  # ============================================
+  minio:
+    image: minio/minio:latest
+    container_name: muzeylari-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # MinIO bucket initialization
+  minio-init:
+    image: minio/mc:latest
+    container_name: muzeylari-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER:-minioadmin} $${MINIO_ROOT_PASSWORD:-minioadmin};
+      mc mb local/$${S3_BUCKET:-muzeylari} --ignore-existing;
+      mc anonymous set download local/$${S3_BUCKET:-muzeylari};
+      exit 0;
+      "
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+      S3_BUCKET: ${S3_BUCKET:-muzeylari}
+
+  # ============================================
+  # API (NestJS)
+  # ============================================
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    container_name: muzeylari-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-muzeylari}:${POSTGRES_PASSWORD:-muzeylari_secret}@postgres:5432/${POSTGRES_DB:-muzeylari}?schema=public
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
+      S3_BUCKET: ${S3_BUCKET:-muzeylari}
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-http://localhost:9000/muzeylari}
+      APP_JWT_SECRET: ${APP_JWT_SECRET:-change-me-app-jwt-secret-min-32-chars}
+      APP_JWT_EXPIRES_IN: ${APP_JWT_EXPIRES_IN:-365d}
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET:-change-me-admin-jwt-secret-min-32-chars}
+      ADMIN_JWT_EXPIRES_IN: ${ADMIN_JWT_EXPIRES_IN:-15m}
+      ADMIN_JWT_REFRESH_SECRET: ${ADMIN_JWT_REFRESH_SECRET:-change-me-admin-refresh-secret-min-32-chars}
+      ADMIN_JWT_REFRESH_EXPIRES_IN: ${ADMIN_JWT_REFRESH_EXPIRES_IN:-7d}
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3001,http://localhost:3002}
+    ports:
+      - '3000:3000'
+
+  # ============================================
+  # Admin Panel (Next.js)
+  # ============================================
+  admin:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.admin
+    container_name: muzeylari-admin
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:3000}
+      NODE_ENV: ${NODE_ENV:-production}
+      NEXT_TELEMETRY_DISABLED: 1
+    ports:
+      - '3001:3001'
+
+  # ============================================
+  # Landing Page (Next.js)
+  # ============================================
+  landing:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.landing
+    container_name: muzeylari-landing
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_SITE_URL: ${LANDING_URL:-http://localhost:3002}
+      NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:3000}
+      NEXT_PUBLIC_APP_STORE_URL: ${NEXT_PUBLIC_APP_STORE_URL:-https://apps.apple.com/app/ozbekiston-muzeylari/id0000000000}
+      NEXT_PUBLIC_GOOGLE_PLAY_URL: ${NEXT_PUBLIC_GOOGLE_PLAY_URL:-https://play.google.com/store/apps/details?id=uz.muzeylari.app}
+      NEXT_PUBLIC_CONTACT_EMAIL: ${NEXT_PUBLIC_CONTACT_EMAIL:-info@muzeylari.uz}
+      NODE_ENV: ${NODE_ENV:-production}
+      NEXT_TELEMETRY_DISABLED: 1
+    ports:
+      - '3002:3002'
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
