@@ -12,17 +12,62 @@ async function bootstrap() {
   // Global prefix
   app.setGlobalPrefix('api/v1');
 
-  // CORS
-  const corsOrigins = process.env.CORS_ORIGINS?.split(',') || [
-    'http://localhost:3100',
-    'http://localhost:3200',
+  // CORS — build the allowed-origins list from multiple sources so that
+  // production domains are always included even if the .env on the droplet
+  // is incomplete.
+  const originsFromEnv = process.env.CORS_ORIGINS?.split(',').map((o) =>
+    o.trim(),
+  ) || [];
+
+  const extraOrigins = [
+    process.env.ADMIN_URL,
+    process.env.LANDING_URL,
+    process.env.API_URL,
+  ].filter(Boolean) as string[];
+
+  // Production domains — always allowed so a missing env var never locks out
+  // the admin panel.
+  const productionOrigins = [
+    'https://admin.mozey.uz',
+    'https://mozey.uz',
+    'https://api.mozey.uz',
+  ];
+
+  // Dev defaults
+  const devOrigins = [
+    'http://localhost:3000',
     'http://localhost:3001',
     'http://localhost:3002',
+    'http://localhost:3100',
+    'http://localhost:3200',
+    'http://localhost:3030',
+    'http://localhost:3333',
   ];
+
+  const allOrigins = [
+    ...new Set([
+      ...originsFromEnv,
+      ...extraOrigins,
+      ...productionOrigins,
+      ...devOrigins,
+    ]),
+  ];
+
+  logger.log(`CORS allowed origins: ${allOrigins.join(', ')}`);
+
   app.enableCors({
-    origin: corsOrigins,
+    origin: allOrigins,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Accept',
+      'Origin',
+      'X-Requested-With',
+    ],
+    exposedHeaders: ['Content-Disposition'],
     credentials: true,
+    maxAge: 86400, // cache preflight for 24h
   });
 
   // Global validation pipe
