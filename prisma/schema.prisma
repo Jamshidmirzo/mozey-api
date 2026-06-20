@@ -43,6 +43,7 @@ model Museum {
   deletedAt    DateTime?      @map("deleted_at") @db.Timestamptz(3)
   region       Region?        @relation(fields: [regionId], references: [id], onDelete: SetNull)
   photos       MuseumPhoto[]
+  links        MuseumLink[]
 
   @@index([updatedAt])
   @@index([isPublished])
@@ -62,6 +63,23 @@ model MuseumPhoto {
 
   @@index([museumId])
   @@map("museum_photos")
+}
+
+/// External links attached to a museum (official website, social, video, ticket office, etc.).
+/// `label` is multilingual JSONB {"uz":"...", "ru":"...", "en":"..."} — optional, falls back to `url` on the client.
+/// `kind` is a free-form tag: "website" | "instagram" | "telegram" | "youtube" | "facebook" | "ticket" | "other".
+model MuseumLink {
+  id        String   @id @default(uuid()) @db.Uuid
+  museumId  String   @map("museum_id") @db.Uuid
+  url       String   @db.Text
+  kind      String   @default("website") @db.VarChar(32)
+  label     Json?    @db.JsonB
+  orderIdx  Int      @default(0) @map("order_idx")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  museum    Museum   @relation(fields: [museumId], references: [id], onDelete: Cascade)
+
+  @@index([museumId])
+  @@map("museum_links")
 }
 
 /// Historical places — identical structure to museums.

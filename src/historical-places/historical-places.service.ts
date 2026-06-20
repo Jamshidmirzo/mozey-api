@@ -215,7 +215,7 @@ export class HistoricalPlacesService {
         ticketPrice: dto.ticketPrice as unknown as Prisma.InputJsonValue,
         latitude: dto.latitude,
         longitude: dto.longitude,
-        city: dto.city,
+        city: dto.city ?? '',
         regionId: dto.regionId || null,
         isPublished: dto.isPublished ?? false,
       },

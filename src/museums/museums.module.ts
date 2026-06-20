@@ -3,13 +3,19 @@ import { MuseumsController } from './museums.controller';
 import {
   AdminMuseumsController,
   AdminMuseumPhotosController,
+  AdminMuseumLinksController,
 } from './admin-museums.controller';
 import { MuseumsService } from './museums.service';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 
 @Module({
   imports: [AuditLogModule],
-  controllers: [MuseumsController, AdminMuseumsController, AdminMuseumPhotosController],
+  controllers: [
+    MuseumsController,
+    AdminMuseumsController,
+    AdminMuseumPhotosController,
+    AdminMuseumLinksController,
+  ],
   providers: [MuseumsService],
   exports: [MuseumsService],
 })

@@ -9,6 +9,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MuseumQueryDto } from './dto/museum-query.dto';
 import { CreateMuseumDto } from './dto/create-museum.dto';
 import { UpdateMuseumDto } from './dto/update-museum.dto';
+import {
+  CreateMuseumLinkDto,
+  UpdateMuseumLinkDto,
+} from './dto/create-museum-link.dto';
 
 @Injectable()
 export class MuseumsService {
@@ -54,6 +58,7 @@ export class MuseumsService {
         where,
         include: {
           photos: { orderBy: { orderIdx: 'asc' } },
+          links: { orderBy: { orderIdx: 'asc' } },
           region: { select: { id: true, name: true, slug: true } },
         },
         orderBy: { createdAt: 'desc' },
@@ -89,6 +94,7 @@ export class MuseumsService {
         },
         include: {
           photos: { orderBy: { orderIdx: 'asc' } },
+          links: { orderBy: { orderIdx: 'asc' } },
           region: { select: { id: true, name: true, slug: true } },
         },
         orderBy: { updatedAt: 'asc' },
@@ -118,6 +124,7 @@ export class MuseumsService {
       where: { id, deletedAt: null, isPublished: true },
       include: {
         photos: { orderBy: { orderIdx: 'asc' } },
+        links: { orderBy: { orderIdx: 'asc' } },
         region: { select: { id: true, name: true, slug: true } },
       },
     });
@@ -172,6 +179,7 @@ export class MuseumsService {
         where,
         include: {
           photos: { orderBy: { orderIdx: 'asc' } },
+          links: { orderBy: { orderIdx: 'asc' } },
           region: { select: { id: true, name: true, slug: true } },
         },
         orderBy: { createdAt: 'desc' },
@@ -198,6 +206,7 @@ export class MuseumsService {
       where: { id, deletedAt: null },
       include: {
         photos: { orderBy: { orderIdx: 'asc' } },
+        links: { orderBy: { orderIdx: 'asc' } },
         region: { select: { id: true, name: true, slug: true } },
       },
     });
@@ -207,6 +216,26 @@ export class MuseumsService {
     }
 
     return museum;
+  }
+
+  /**
+   * Admin: distinct city values currently in the DB (optionally filtered
+   * by region) for autosuggest in the create / edit form.
+   */
+  async listCities(regionId?: string): Promise<string[]> {
+    const where: Prisma.MuseumWhereInput = {
+      deletedAt: null,
+      city: { not: '' },
+    };
+    if (regionId) where.regionId = regionId;
+
+    const rows = await this.prisma.museum.findMany({
+      where,
+      select: { city: true },
+      distinct: ['city'],
+      orderBy: { city: 'asc' },
+    });
+    return rows.map((r) => r.city).filter((c) => c.trim().length > 0);
   }
 
   /**
@@ -233,7 +262,7 @@ export class MuseumsService {
         ticketPrice: dto.ticketPrice as unknown as Prisma.InputJsonValue,
         latitude: dto.latitude,
         longitude: dto.longitude,
-        city: dto.city,
+        city: dto.city ?? '',
         regionId: dto.regionId || null,
         isPublished: dto.isPublished ?? false,
       },
@@ -363,5 +392,87 @@ export class MuseumsService {
 
     this.logger.log(`Photo deleted: ${photoId}`);
     return { id: photoId, deleted: true };
+  }
+
+  // ========================================
+  // Museum links
+  // ========================================
+
+  async addLink(museumId: string, dto: CreateMuseumLinkDto) {
+    const museum = await this.prisma.museum.findFirst({
+      where: { id: museumId, deletedAt: null },
+    });
+
+    if (!museum) {
+      throw new NotFoundException('Museum not found');
+    }
+
+    const link = await this.prisma.museumLink.create({
+      data: {
+        museumId,
+        url: dto.url,
+        kind: dto.kind ?? 'website',
+        label: (dto.label ?? null) as unknown as Prisma.InputJsonValue,
+        orderIdx: dto.orderIdx ?? 0,
+      },
+    });
+
+    await this.prisma.museum.update({
+      where: { id: museumId },
+      data: { updatedAt: new Date() },
+    });
+
+    this.logger.log(`Link added to museum ${museumId}: ${link.id}`);
+    return link;
+  }
+
+  async updateLink(linkId: string, dto: UpdateMuseumLinkDto) {
+    const existing = await this.prisma.museumLink.findUnique({
+      where: { id: linkId },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Link not found');
+    }
+
+    const data: Prisma.MuseumLinkUpdateInput = {};
+    if (dto.url !== undefined) data.url = dto.url;
+    if (dto.kind !== undefined) data.kind = dto.kind;
+    if (dto.label !== undefined)
+      data.label = dto.label as unknown as Prisma.InputJsonValue;
+    if (dto.orderIdx !== undefined) data.orderIdx = dto.orderIdx;
+
+    const link = await this.prisma.museumLink.update({
+      where: { id: linkId },
+      data,
+    });
+
+    await this.prisma.museum.update({
+      where: { id: existing.museumId },
+      data: { updatedAt: new Date() },
+    });
+
+    this.logger.log(`Link updated: ${linkId}`);
+    return link;
+  }
+
+  async deleteLink(linkId: string) {
+    const link = await this.prisma.museumLink.findUnique({
+      where: { id: linkId },
+    });
+
+    if (!link) {
+      throw new NotFoundException('Link not found');
+    }
+
+    await this.prisma.museumLink.delete({ where: { id: linkId } });
+
+    await this.prisma.museum.update({
+      where: { id: link.museumId },
+      data: { updatedAt: new Date() },
+    });
+
+    this.logger.log(`Link deleted: ${linkId}`);
+    return { id: linkId, deleted: true };
   }
 }

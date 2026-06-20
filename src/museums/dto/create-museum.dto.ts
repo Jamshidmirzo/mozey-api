@@ -83,10 +83,14 @@ export class CreateMuseumDto {
   @Max(180)
   longitude: number;
 
-  @ApiProperty({ description: 'City name', example: 'Tashkent' })
+  @ApiPropertyOptional({
+    description:
+      'City within the region (optional — defaults to the region name on display when empty)',
+    example: 'Tashkent',
+  })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  city: string;
+  city?: string;
 
   @ApiPropertyOptional({ description: 'Region UUID', format: 'uuid' })
   @IsOptional()

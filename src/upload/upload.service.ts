@@ -7,6 +7,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
+import { basename } from 'path';
 
 @Injectable()
 export class UploadService {
@@ -71,6 +72,27 @@ export class UploadService {
       fileUrl,
       key,
     };
+  }
+
+  /**
+   * Build the public file URL + key descriptor for a file that has already
+   * been written to `public/uploads/<filename>` by Multer's disk storage.
+   *
+   * The returned shape mirrors `generatePresignedUrl` so the admin frontend
+   * can treat both paths the same way once the file is on disk / in S3.
+   */
+  buildLocalUploadResult(filename: string): { fileUrl: string; key: string } {
+    // Defensively strip any leading directory components — Multer's disk
+    // storage already gives us a flat filename, but we want to be sure
+    // nothing like "../../etc/passwd" leaks into the URL.
+    const safeName = basename(filename);
+    const key = `uploads/${safeName}`;
+    const publicBase = this.configService
+      .get<string>('PUBLIC_BASE_URL', 'http://localhost:3333')
+      .replace(/\/+$/, '');
+    const fileUrl = `${publicBase}/static/uploads/${safeName}`;
+    this.logger.log(`Local upload stored: ${key}`);
+    return { fileUrl, key };
   }
 
   /**

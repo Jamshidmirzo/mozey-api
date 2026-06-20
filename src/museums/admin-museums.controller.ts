@@ -24,6 +24,10 @@ import { MuseumsService } from './museums.service';
 import { CreateMuseumDto } from './dto/create-museum.dto';
 import { UpdateMuseumDto } from './dto/update-museum.dto';
 import { MuseumQueryDto } from './dto/museum-query.dto';
+import {
+  CreateMuseumLinkDto,
+  UpdateMuseumLinkDto,
+} from './dto/create-museum-link.dto';
 import { AuditLogService } from '../audit-log/audit-log.service';
 
 @ApiTags('Admin Museums')
@@ -42,6 +46,19 @@ export class AdminMuseumsController {
   @ApiResponse({ status: 200, description: 'Paginated museum list' })
   async findAll(@Query() query: MuseumQueryDto) {
     return this.museumsService.adminFindAll(query);
+  }
+
+  @Get('cities')
+  @Roles('superadmin', 'editor')
+  @ApiOperation({
+    summary: 'List distinct city values for autosuggest',
+    description:
+      'Returns sorted, distinct non-empty city strings used by existing museums. ' +
+      'Pass ?regionId= to scope to a single region.',
+  })
+  @ApiResponse({ status: 200, description: 'Array of city names' })
+  async listCities(@Query('regionId') regionId?: string) {
+    return this.museumsService.listCities(regionId);
   }
 
   @Get(':id')
@@ -148,6 +165,92 @@ export class AdminMuseumsController {
     });
 
     return photo;
+  }
+
+  @Post(':id/links')
+  @Roles('superadmin', 'editor')
+  @ApiOperation({ summary: 'Add an external link to a museum' })
+  @ApiResponse({ status: 201, description: 'Link added' })
+  @ApiResponse({ status: 404, description: 'Museum not found' })
+  async addLink(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateMuseumLinkDto,
+    @CurrentUser() admin: { id: string },
+  ) {
+    const link = await this.museumsService.addLink(id, dto);
+
+    await this.auditLogService.log({
+      adminId: admin.id,
+      action: 'add_link',
+      entityType: 'museum',
+      entityId: id,
+      diff: {
+        linkId: link.id,
+        url: dto.url,
+        kind: dto.kind ?? 'website',
+      },
+    });
+
+    return link;
+  }
+}
+
+/**
+ * Separate controller for museum link mutation (PATCH/DELETE /admin/links/:id).
+ */
+@ApiTags('Admin Museums')
+@ApiBearerAuth('admin-token')
+@Controller('admin/links')
+@UseGuards(AdminJwtAuthGuard, RolesGuard)
+export class AdminMuseumLinksController {
+  constructor(
+    private readonly museumsService: MuseumsService,
+    private readonly auditLogService: AuditLogService,
+  ) {}
+
+  @Patch(':id')
+  @Roles('superadmin', 'editor')
+  @ApiOperation({ summary: 'Update an external link' })
+  @ApiResponse({ status: 200, description: 'Link updated' })
+  @ApiResponse({ status: 404, description: 'Link not found' })
+  async updateLink(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateMuseumLinkDto,
+    @CurrentUser() admin: { id: string },
+  ) {
+    const link = await this.museumsService.updateLink(id, dto);
+
+    await this.auditLogService.log({
+      adminId: admin.id,
+      action: 'update_link',
+      entityType: 'museum_link',
+      entityId: id,
+      diff: dto as unknown as Record<string, unknown>,
+    });
+
+    return link;
+  }
+
+  @Delete(':id')
+  @Roles('superadmin', 'editor')
+  @ApiOperation({ summary: 'Delete an external link' })
+  @ApiResponse({ status: 200, description: 'Link deleted' })
+  @ApiResponse({ status: 404, description: 'Link not found' })
+  async deleteLink(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() admin: { id: string },
+  ) {
+    const result = await this.museumsService.deleteLink(id);
+
+    await this.auditLogService.log({
+      adminId: admin.id,
+      action: 'delete_link',
+      entityType: 'museum_link',
+      entityId: id,
+      diff: null,
+    });
+
+    return result;
   }
 }
 

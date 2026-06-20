@@ -2,3 +2,7 @@ node_modules
 dist
 .env
 *.log
+
+# Local file uploads (direct mode) — keep the directory, ignore its contents
+public/uploads/*
+!public/uploads/.gitkeep
