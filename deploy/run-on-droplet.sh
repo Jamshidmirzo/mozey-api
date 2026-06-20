@@ -30,13 +30,9 @@ ensure_git() {
   local dir=$1 repo=$2
   log "git: $dir"
   cd "$dir"
-  if [ ! -d .git ]; then
-    git init -b main >/dev/null
-    git remote add origin "$repo"
-    ok "initialized git, remote set"
-  else
-    git remote set-url origin "$repo"
-  fi
+  [ -d .git ] || git init -b main >/dev/null
+  git remote remove origin 2>/dev/null || true
+  git remote add origin "$repo"
   git fetch --prune origin main
   # Hard-reset tracked files to origin/main. Untracked files (.env, certs, etc.) survive.
   git reset --hard origin/main
