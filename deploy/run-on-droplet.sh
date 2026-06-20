@@ -40,10 +40,29 @@ ensure_git() {
   ok "synced to $(git rev-parse --short HEAD)"
 }
 
+# `mozey` is a monorepo with apps/landing/, but prod /opt/mozey/landing/
+# expects the landing app at the root of the dir (its Dockerfile + package.json
+# live there). Extract apps/landing/ subtree, preserve untracked .env.
+sync_landing_subtree() {
+  local repo=$1 dest=$2
+  log "git (subtree apps/landing): $dest"
+  local tmp; tmp=$(mktemp -d)
+  git clone --depth 1 --branch main "$repo" "$tmp" >/dev/null 2>&1
+  if [ ! -d "$tmp/apps/landing" ]; then
+    err "apps/landing/ not found in $repo"; rm -rf "$tmp"; return 1
+  fi
+  # rsync: replace tracked files; --exclude .env keeps prod secrets.
+  rsync -a --delete-excluded \
+        --exclude='.env' --exclude='.env.*' --exclude='node_modules' --exclude='.next' \
+        "$tmp/apps/landing/" "$dest/"
+  ok "landing synced from $(git -C "$tmp" rev-parse --short HEAD)"
+  rm -rf "$tmp"
+}
+
 # ----- 1. Sync source ---------------------------------------------------------
-ensure_git "$ROOT/api"     "$API_REPO"
-ensure_git "$ROOT/admin"   "$ADMIN_REPO"
-ensure_git "$ROOT/landing" "$LANDING_REPO"
+ensure_git           "$ROOT/api"     "$API_REPO"
+ensure_git           "$ROOT/admin"   "$ADMIN_REPO"
+sync_landing_subtree "$LANDING_REPO" "$ROOT/landing"
 
 # ----- 2. Rebuild + restart from the single prod compose ----------------------
 log "build api"
