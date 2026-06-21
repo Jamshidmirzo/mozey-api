@@ -5,6 +5,7 @@ import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { UploadController } from './upload.controller';
 import { UploadService } from './upload.service';
+import { MAX_FILE_SIZE_BYTES } from '../common/constants';
 
 @Module({
   imports: [
@@ -22,7 +23,7 @@ import { UploadService } from './upload.service';
           // Keep the global module config minimal so other features that may
           // mount file uploads in the future are not surprised.
           limits: {
-            fileSize: 10 * 1024 * 1024, // 10 MB
+            fileSize: MAX_FILE_SIZE_BYTES,
           },
         };
       },

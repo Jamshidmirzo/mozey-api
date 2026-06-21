@@ -17,8 +17,7 @@ export class TransformInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     return next.handle().pipe(
       map((data) => {
-        // If the response already has our sync shape or is marked raw, pass through
-        if (data && (data._raw === true || data.serverTime || data.server_time)) {
+        if (data && data._raw === true) {
           const { _raw, ...rest } = data;
           return rest;
         }

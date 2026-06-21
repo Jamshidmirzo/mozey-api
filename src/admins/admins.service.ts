@@ -8,6 +8,7 @@ import {
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAdminDto } from './dto/create-admin.dto';
+import { BCRYPT_SALT_ROUNDS } from '../common/constants';
 
 @Injectable()
 export class AdminsService {
@@ -38,7 +39,7 @@ export class AdminsService {
       throw new ConflictException('Email already in use');
     }
 
-    const passwordHash = await bcrypt.hash(dto.password, 12);
+    const passwordHash = await bcrypt.hash(dto.password, BCRYPT_SALT_ROUNDS);
 
     const admin = await this.prisma.admin.create({
       data: {

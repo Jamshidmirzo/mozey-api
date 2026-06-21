@@ -1,26 +1,25 @@
-/**
- * JWT payload for mobile app device tokens.
- */
+import { AdminRole } from '../enums';
+
+/** JWT payload for mobile app device tokens. */
 export interface AppJwtPayload {
-  sub: string; // user UUID
+  /** App user UUID */
+  sub: string;
   deviceId: string;
   type: 'app';
 }
 
-/**
- * JWT payload for admin access tokens.
- */
+/** JWT payload for admin access tokens. */
 export interface AdminJwtPayload {
-  sub: string; // admin UUID
+  /** Admin UUID */
+  sub: string;
   email: string;
-  role: string;
+  role: AdminRole;
   type: 'admin';
 }
 
-/**
- * JWT payload for admin refresh tokens.
- */
+/** JWT payload for admin refresh tokens. */
 export interface AdminRefreshJwtPayload {
-  sub: string; // admin UUID
+  /** Admin UUID */
+  sub: string;
   type: 'admin-refresh';
 }

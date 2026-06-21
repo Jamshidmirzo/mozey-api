@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { SyncActionsDto } from './dto/sync-actions.dto';
+import { MANIFEST_HASH_LENGTH } from '../common/constants';
 
 @Injectable()
 export class SyncService {
@@ -18,36 +19,37 @@ export class SyncService {
     let duplicates = 0;
     let failed = 0;
 
-    for (const action of dto.actions) {
-      try {
-        await this.prisma.userAction.create({
-          data: {
-            userId,
-            entityType: action.entityType,
-            entityId: action.entityId,
-            actionType: action.actionType,
-            clientEventId: action.clientEventId,
-            createdAt: new Date(action.createdAt),
-          },
-        });
-        accepted++;
-      } catch (error: unknown) {
-        // Prisma unique constraint violation = duplicate
-        if (
-          error &&
-          typeof error === 'object' &&
-          'code' in error &&
-          (error as { code: string }).code === 'P2002'
-        ) {
-          duplicates++;
-        } else {
-          failed++;
-          this.logger.warn(
-            `Failed to sync action ${action.clientEventId}: ${error}`,
-          );
+    await this.prisma.$transaction(async (tx) => {
+      for (const action of dto.actions) {
+        try {
+          await tx.userAction.create({
+            data: {
+              userId,
+              entityType: action.entityType,
+              entityId: action.entityId,
+              actionType: action.actionType,
+              clientEventId: action.clientEventId,
+              createdAt: new Date(action.createdAt),
+            },
+          });
+          accepted++;
+        } catch (error: unknown) {
+          if (
+            error &&
+            typeof error === 'object' &&
+            'code' in error &&
+            (error as { code: string }).code === 'P2002'
+          ) {
+            duplicates++;
+          } else {
+            failed++;
+            this.logger.warn(
+              `Failed to sync action ${action.clientEventId}: ${error}`,
+            );
+          }
         }
       }
-    }
+    });
 
     this.logger.log(
       `Sync actions for user ${userId}: ${accepted} accepted, ${duplicates} duplicates, ${failed} failed`,
@@ -112,6 +114,6 @@ export class SyncService {
       name: entity.name,
       description: entity.description,
     });
-    return createHash('md5').update(content).digest('hex').slice(0, 12);
+    return createHash('md5').update(content).digest('hex').slice(0, MANIFEST_HASH_LENGTH);
   }
 }

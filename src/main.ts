@@ -4,6 +4,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { CORS_MAX_AGE_SECONDS } from './common/constants';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -67,7 +68,7 @@ async function bootstrap() {
     ],
     exposedHeaders: ['Content-Disposition'],
     credentials: true,
-    maxAge: 86400, // cache preflight for 24h
+    maxAge: CORS_MAX_AGE_SECONDS,
   });
 
   // Global validation pipe

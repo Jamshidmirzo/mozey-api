@@ -6,6 +6,7 @@ import {
   IsIn,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { AdminRole } from '../../common/enums';
 
 export class CreateAdminDto {
   @ApiProperty({
@@ -27,10 +28,10 @@ export class CreateAdminDto {
 
   @ApiProperty({
     description: 'Admin role',
-    enum: ['superadmin', 'editor'],
-    example: 'editor',
+    enum: AdminRole,
+    example: AdminRole.EDITOR,
   })
   @IsString()
-  @IsIn(['superadmin', 'editor'])
+  @IsIn(Object.values(AdminRole))
   role: string;
 }

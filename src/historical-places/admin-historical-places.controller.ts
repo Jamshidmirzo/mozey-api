@@ -24,6 +24,7 @@ import { HistoricalPlacesService } from './historical-places.service';
 import { CreateHistoricalPlaceDto } from './dto/create-historical-place.dto';
 import { UpdateHistoricalPlaceDto } from './dto/update-historical-place.dto';
 import { HistoricalPlaceQueryDto } from './dto/historical-place-query.dto';
+import { AddPhotoDto } from '../common/dto/add-photo.dto';
 import { AuditLogService } from '../audit-log/audit-log.service';
 
 @ApiTags('Admin Historical Places')
@@ -133,13 +134,13 @@ export class AdminHistoricalPlacesController {
   @ApiResponse({ status: 404, description: 'Place not found' })
   async addPhoto(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: { url: string; orderIdx?: number },
+    @Body() dto: AddPhotoDto,
     @CurrentUser() admin: { id: string },
   ) {
     const photo = await this.historicalPlacesService.addPhoto(
       id,
-      body.url,
-      body.orderIdx ?? 0,
+      dto.url,
+      dto.orderIdx ?? 0,
     );
 
     await this.auditLogService.log({
@@ -147,7 +148,7 @@ export class AdminHistoricalPlacesController {
       action: 'add_photo',
       entityType: 'historical_place',
       entityId: id,
-      diff: { photoId: photo.id, url: body.url },
+      diff: { photoId: photo.id, url: dto.url },
     });
 
     return photo;

@@ -10,15 +10,17 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
+import { SYNC_BATCH_MAX_SIZE } from '../../common/constants';
+import { EntityType, ActionType } from '../../common/enums';
 
 export class SyncActionItemDto {
   @ApiProperty({
     description: 'Entity type',
-    enum: ['museum', 'historical'],
-    example: 'museum',
+    enum: EntityType,
+    example: EntityType.MUSEUM,
   })
   @IsString()
-  @IsIn(['museum', 'historical'])
+  @IsIn(Object.values(EntityType))
   entityType: string;
 
   @ApiProperty({
@@ -30,11 +32,11 @@ export class SyncActionItemDto {
 
   @ApiProperty({
     description: 'Action type',
-    enum: ['like', 'unlike', 'save', 'unsave'],
-    example: 'like',
+    enum: ActionType,
+    example: ActionType.LIKE,
   })
   @IsString()
-  @IsIn(['like', 'unlike', 'save', 'unsave'])
+  @IsIn(Object.values(ActionType))
   actionType: string;
 
   @ApiProperty({
@@ -55,11 +57,11 @@ export class SyncActionItemDto {
 
 export class SyncActionsDto {
   @ApiProperty({
-    description: 'Array of user action events to sync (max 100 per batch)',
+    description: `Array of user action events to sync (max ${SYNC_BATCH_MAX_SIZE} per batch)`,
     type: [SyncActionItemDto],
   })
   @IsArray()
-  @ArrayMaxSize(100)
+  @ArrayMaxSize(SYNC_BATCH_MAX_SIZE)
   @ValidateNested({ each: true })
   @Type(() => SyncActionItemDto)
   actions: SyncActionItemDto[];

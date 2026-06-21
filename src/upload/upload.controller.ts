@@ -30,13 +30,9 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UploadService } from './upload.service';
 import { PresignRequestDto } from './dto/presign-request.dto';
+import { ALLOWED_IMAGE_MIME_TYPES, MAX_FILE_SIZE_BYTES } from '../common/constants';
 
-const ALLOWED_MIME = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/avif',
-]);
+const ALLOWED_MIME = new Set<string>(ALLOWED_IMAGE_MIME_TYPES);
 
 // Minimal local Multer file shape — avoids pulling in @types/multer just for
 // one decorator. Mirrors the public fields surfaced by multer's disk storage.
@@ -152,7 +148,7 @@ export class UploadController {
           cb(null, `${uuidv4()}-${stem}${ext}`);
         },
       }),
-      limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+      limits: { fileSize: MAX_FILE_SIZE_BYTES },
       fileFilter: (
         _req: unknown,
         file: MulterFile,

@@ -31,12 +31,6 @@ export class AppJwtStrategy extends PassportStrategy(Strategy, 'app-jwt') {
       throw new UnauthorizedException('User not found');
     }
 
-    // Update last_seen_at
-    await this.prisma.appUser.update({
-      where: { id: user.id },
-      data: { lastSeenAt: new Date() },
-    });
-
     return { id: user.id, deviceId: user.deviceId };
   }
 }

@@ -28,6 +28,7 @@ import {
   CreateMuseumLinkDto,
   UpdateMuseumLinkDto,
 } from './dto/create-museum-link.dto';
+import { AddPhotoDto } from '../common/dto/add-photo.dto';
 import { AuditLogService } from '../audit-log/audit-log.service';
 
 @ApiTags('Admin Museums')
@@ -147,13 +148,13 @@ export class AdminMuseumsController {
   @ApiResponse({ status: 404, description: 'Museum not found' })
   async addPhoto(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: { url: string; orderIdx?: number },
+    @Body() dto: AddPhotoDto,
     @CurrentUser() admin: { id: string },
   ) {
     const photo = await this.museumsService.addPhoto(
       id,
-      body.url,
-      body.orderIdx ?? 0,
+      dto.url,
+      dto.orderIdx ?? 0,
     );
 
     await this.auditLogService.log({
@@ -161,7 +162,7 @@ export class AdminMuseumsController {
       action: 'add_photo',
       entityType: 'museum',
       entityId: id,
-      diff: { photoId: photo.id, url: body.url },
+      diff: { photoId: photo.id, url: dto.url },
     });
 
     return photo;

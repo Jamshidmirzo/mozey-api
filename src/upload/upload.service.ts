@@ -8,6 +8,7 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
 import { basename } from 'path';
+import { PRESIGN_EXPIRY_SECONDS } from '../common/constants';
 
 @Injectable()
 export class UploadService {
@@ -60,7 +61,7 @@ export class UploadService {
     });
 
     const uploadUrl = await getSignedUrl(this.s3Client, command, {
-      expiresIn: 900, // 15 minutes
+      expiresIn: PRESIGN_EXPIRY_SECONDS,
     });
 
     const fileUrl = `${this.publicUrl}/${key}`;

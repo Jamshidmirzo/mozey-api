@@ -15,6 +15,7 @@ import {
   AdminJwtPayload,
   AdminRefreshJwtPayload,
 } from '../common/interfaces/jwt-payload.interface';
+import { AdminRole } from '../common/enums';
 
 interface FlekSsoClaims {
   iss?: string;
@@ -179,7 +180,7 @@ export class AdminAuthService {
     const accessPayload: AdminJwtPayload = {
       sub: admin.id,
       email: admin.email,
-      role: admin.role,
+      role: admin.role as AdminRole,
       type: 'admin',
     };
 
