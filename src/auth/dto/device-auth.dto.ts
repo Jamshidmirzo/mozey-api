@@ -28,4 +28,13 @@ export class DeviceAuthDto {
   @IsString()
   @MaxLength(20)
   appVersion?: string;
+
+  @ApiPropertyOptional({
+    description: 'Firebase Cloud Messaging token',
+    example: 'fMfN...long-token',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  fcmToken?: string;
 }

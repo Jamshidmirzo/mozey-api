@@ -126,6 +126,7 @@ model AppUser {
   deviceId   String       @unique @map("device_id") @db.Text
   locale     String?      @db.VarChar(5)
   appVersion String?      @map("app_version") @db.VarChar(20)
+  fcmToken   String?      @map("fcm_token") @db.Text
   createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   lastSeenAt DateTime     @default(now()) @map("last_seen_at") @db.Timestamptz(3)
   actions    UserAction[]
@@ -157,7 +158,8 @@ model Admin {
   passwordHash String     @map("password_hash") @db.Text
   role         String     @default("editor") @db.VarChar(20)
   createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
-  auditLogs    AuditLog[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
 
   @@map("admins")
 }
@@ -177,4 +179,20 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@map("audit_log")
+}
+
+/// Push notification history — every notification sent from admin panel.
+model Notification {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       Json     @db.JsonB
+  body        Json     @db.JsonB
+  topic       String?  @db.VarChar(255)
+  sentCount   Int      @default(0) @map("sent_count")
+  failedCount Int      @default(0) @map("failed_count")
+  adminId     String   @map("admin_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  admin       Admin    @relation(fields: [adminId], references: [id])
+
+  @@index([createdAt])
+  @@map("notifications")
 }

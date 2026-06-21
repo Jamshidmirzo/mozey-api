@@ -31,6 +31,7 @@ export class AuthService {
         data: {
           locale: dto.locale ?? user.locale,
           appVersion: dto.appVersion ?? user.appVersion,
+          fcmToken: dto.fcmToken ?? user.fcmToken,
           lastSeenAt: new Date(),
         },
       });
@@ -41,6 +42,7 @@ export class AuthService {
           deviceId: dto.deviceId,
           locale: dto.locale,
           appVersion: dto.appVersion,
+          fcmToken: dto.fcmToken,
         },
       });
       this.logger.log(`New device registered: ${dto.deviceId}`);

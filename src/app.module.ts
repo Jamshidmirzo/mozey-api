@@ -12,6 +12,7 @@ import { AdminsModule } from './admins/admins.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
 import { UploadModule } from './upload/upload.module';
 import { RegionsModule } from './regions/regions.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -34,6 +35,7 @@ import { HealthController } from './health/health.controller';
     AuditLogModule,
     UploadModule,
     RegionsModule,
+    NotificationsModule,
   ],
   controllers: [HealthController],
 })
