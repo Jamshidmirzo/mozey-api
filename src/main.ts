@@ -32,6 +32,9 @@ async function bootstrap() {
     'https://admin.mozey.uz',
     'https://mozey.uz',
     'https://api.mozey.uz',
+    // flek-monitor proxy: SSO callback page runs in an iframe at this origin
+    // and POSTs directly to this API for the sso-exchange flow.
+    'https://monitoring.flek.uz',
   ];
 
   // Dev defaults
